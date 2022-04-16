@@ -21,31 +21,37 @@ import com.binaracademy.notesapp.model.Notes
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.async
 import org.w3c.dom.Text
+import java.lang.Double
 
-class HomeAdapter(private val notes : List<Notes>) : RecyclerView.Adapter<HomeAdapter.MainViewHolder>() {
+class HomeAdapter(
+    private val notes: List<Notes>,
+    private val delete: (Notes) -> Unit,
+    private val edit: (Notes) -> Unit
+) : RecyclerView.Adapter<HomeAdapter.MainViewHolder>() {
 
 
-
-    class MainViewHolder( val binding : ItemRvNotesBinding): RecyclerView.ViewHolder(binding.root){
+    class MainViewHolder(val binding: ItemRvNotesBinding) : RecyclerView.ViewHolder(binding.root) {
 
     }
 
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): MainViewHolder {
-        val binding = ItemRvNotesBinding.inflate(LayoutInflater.from(parent.context),parent,false)
+        val binding = ItemRvNotesBinding.inflate(LayoutInflater.from(parent.context), parent, false)
 
         return MainViewHolder(binding)
     }
+
     override fun onBindViewHolder(holder: MainViewHolder, position: Int) {
         holder.binding.tvId.text = notes[position].id.toString()
         holder.binding.tvTitle.text = notes[position].title
         holder.binding.tvActivity.text = notes[position].description
 
-        var title =""
-        var activity =""
+        var title = ""
+        var activity = ""
 
         val view =
-            LayoutInflater.from(holder.itemView.context).inflate(R.layout.custom_dialog, null, false)
+            LayoutInflater.from(holder.itemView.context)
+                .inflate(R.layout.custom_dialog, null, false)
         val dialog = AlertDialog.Builder(holder.itemView.context)
         dialog.setView(view)
         dialog.setCancelable(true)
@@ -57,7 +63,7 @@ class HomeAdapter(private val notes : List<Notes>) : RecyclerView.Adapter<HomeAd
         val btnOk = view.findViewById<Button>(R.id.btnOk)
 
 
-        holder.binding.ivEdit.setOnClickListener{
+        holder.binding.ivEdit.setOnClickListener {
             val db = NotesDatabase.getInstance(holder.itemView.context)
             dialogRead.show()
 
@@ -67,60 +73,77 @@ class HomeAdapter(private val notes : List<Notes>) : RecyclerView.Adapter<HomeAd
 
 
 
-            btnOk.setOnClickListener{
-                title = etTitle.text.toString()
-                activity = etActivity.text.toString()
+            btnOk.setOnClickListener {
+                if(etTitle.text.isNotBlank() || etActivity.text.isNotBlank()){
+                    Thread(Runnable {
 
-                val notes = Notes(
-                    notes[position].id,
-                    title,
-                    activity
-                )
-                Thread {
-                    val result = db?.NotesDao()?.updateNotes(notes)
-                    (holder.itemView.context as MainActivity).runOnUiThread{
-                        if(result!=0){
-                            Toast.makeText(it.context,"Updated",Toast.LENGTH_LONG).show()
+                        title = etTitle.text.toString()
+                        activity = etActivity.text.toString()
+
+
+                        val notesUpdate = Notes(
+                            notes[position].id,
+                            title,
+                            activity
+                        )
+                        val result = db?.NotesDao()?.updateNotes(notesUpdate)
+                        (holder.itemView.context as MainActivity).runOnUiThread {
+                            if (result != 0) {
+                                Toast.makeText(it.context, "Updated", Toast.LENGTH_LONG).show()
                                 dialogRead.dismiss()
-                        }else{
-                            Toast.makeText(it.context,"Failed to updated",Toast.LENGTH_LONG).show()
-                        }
-                    }
-                }.start()
-            }
+                                edit(notes[position])
+                            } else {
+                                Toast.makeText(it.context, "Failed to updated", Toast.LENGTH_LONG)
+                                    .show()
+                            }
 
+                        }
+                    }).start()
+                }else{
+                    Toast.makeText(it.context,"Fill form",Toast.LENGTH_SHORT).show()
+                }
+
+
+            }
 
 
         }
 
-        holder.binding.ivDelete.setOnClickListener{
+        holder.binding.ivDelete.setOnClickListener {
+
 
             AlertDialog.Builder(holder.itemView.context)
                 .setTitle("Delete!")
                 .setMessage("You sure want to delete ?")
                 .setCancelable(true)
-                .setPositiveButton("Yes"){
-                        dialog, _ ->  val db = NotesDatabase.getInstance(holder.itemView.context)
+                .setPositiveButton("Yes") { dialog, _ ->
+                    val db = NotesDatabase.getInstance(holder.itemView.context)
 
-                    Thread{
+                    Thread(Runnable {
                         val result = db?.NotesDao()?.deleteNotes(notes[position])
-
                         (holder.itemView.context as MainActivity).runOnUiThread {
-                            if(result!=0){
-                                Toast.makeText(it.context,"Deleted id ${notes[position].id}", Toast.LENGTH_LONG).show()
-                            }else{
-                                Toast.makeText(it.context,"Failed to delete ${notes[position].id}", Toast.LENGTH_LONG).show()
+                            if (result != 0) {
+                                delete(notes[position])
+                                Toast.makeText(
+                                    it.context,
+                                    "Deleted id ${notes[position].id}",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            } else {
+                                Toast.makeText(
+                                    it.context,
+                                    "Failed to delete ${notes[position].id}",
+                                    Toast.LENGTH_LONG
+                                ).show()
                             }
                         }
-
-                    }.start()
+                    }).start()
                 }
-                .setNegativeButton("No"){
-                        dialog,_ -> dialog.dismiss()
+                .setNegativeButton("No") { dialog, _ ->
+                    dialog.dismiss()
                 }
                 .show()
                 .getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(Color.BLUE)
-
 
 
         }

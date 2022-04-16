@@ -1,10 +1,12 @@
 package com.binaracademy.notesapp.fragment
 
 import android.app.AlertDialog
+import android.app.Application
 import android.content.Context
 import android.content.SharedPreferences
 import android.graphics.Color
 import android.graphics.Color.blue
+import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import android.util.Log
 import androidx.fragment.app.Fragment
@@ -19,10 +21,12 @@ import androidx.recyclerview.widget.RecyclerView
 import com.binaracademy.notesapp.MainActivity
 import com.binaracademy.notesapp.R
 import com.binaracademy.notesapp.database.NotesDatabase
+import com.binaracademy.notesapp.databinding.CustomDialogBinding
 import com.binaracademy.notesapp.databinding.FragmentHomeBinding
 import com.binaracademy.notesapp.model.Notes
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
+import java.lang.Double.parseDouble
 import kotlin.concurrent.thread
 
 class HomeFragment : Fragment() {
@@ -45,8 +49,8 @@ class HomeFragment : Fragment() {
         val layoutManager =
             LinearLayoutManager(requireContext(), LinearLayoutManager.VERTICAL, false)
         binding.rvNotes.layoutManager = layoutManager
-        binding.rvNotes.adapter = listNotes?.let { HomeAdapter(it) }
-        binding.rvNotes.adapter?.notifyDataSetChanged()
+//        binding.rvNotes.adapter = listNotes?.let { HomeAdapter(it) }
+//        binding.rvNotes.adapter?.notifyDataSetChanged()
 
         val sharedPreferences : SharedPreferences = requireActivity().getSharedPreferences(sharedPref, Context.MODE_PRIVATE)
         val editor : SharedPreferences.Editor = sharedPreferences.edit()
@@ -79,7 +83,13 @@ class HomeFragment : Fragment() {
             btnOk.setOnClickListener {
                 title = etTitle.text.toString()
                 activity = etActivity.text.toString()
+                var numeric = true
 
+                try {
+                    val num = parseDouble(title)
+                } catch (e: NumberFormatException) {
+                    numeric = false
+                }
                 val notes = Notes(
                     null,
                     title,
@@ -88,6 +98,8 @@ class HomeFragment : Fragment() {
 
                 if (etTitle.text.isEmpty() || etActivity.text.isEmpty()){
                     Toast.makeText(requireContext(),"Silahkan isi kolom",Toast.LENGTH_LONG).show()
+                }else if(numeric == true){
+                    Toast.makeText(requireContext(),"Title tidak boleh angka",Toast.LENGTH_LONG).show()
                 }else{
                     val thread = Thread {
                         val result = db?.NotesDao()?.insertNotes(notes)
@@ -124,9 +136,6 @@ class HomeFragment : Fragment() {
 
         }
 
-        binding.btnRefresh.setOnClickListener{
-            fetchData()
-        }
 
         binding.tvLogout.setOnClickListener {
             AlertDialog.Builder(requireContext())
@@ -174,7 +183,15 @@ class HomeFragment : Fragment() {
 
             getActivity()?.runOnUiThread {
                 listStudent?.let {
-                    adapter = HomeAdapter(it)
+                    adapter = HomeAdapter(it, delete = {
+                        fetchData()
+//
+                    }, edit = {
+                        fetchData()
+//
+                    }
+
+                    )
                     binding.rvNotes.adapter = adapter
                     binding.rvNotes.adapter?.notifyDataSetChanged()
 
